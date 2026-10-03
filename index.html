@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>HatheemOS 98</title>
+  <meta name="description" content="Hatheem Rafeek: CSE undergrad, NLP and agentic AI. A Windows 98-style portfolio.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=VT323&display=swap">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<canvas id="wall" aria-hidden="true"></canvas>
+<div id="desk"><nav class="icons" id="icons" aria-label="Desktop"></nav><div id="bubble" role="status" aria-live="polite"></div><div id="welcome" aria-hidden="true"><small></small><b></b></div><div id="hint" aria-hidden="true"><span class="arr">◀</span><span>Click any folder to open it<span class="cur">_</span></span></div></div>
+<div id="startmenu" class="out" hidden>
+  <div class="side"><span>Hatheem<b>OS</b> 98</span></div>
+  <ul id="startlist"></ul>
+</div>
+<div id="shutdown" hidden>It's now safe to turn off<br>your computer.<br><br><small>(click anywhere to boot again)</small></div>
+<footer class="task out">
+  <button class="btn out start" id="startbtn" aria-haspopup="menu" aria-expanded="false"><i></i><b>Start</b></button>
+  <div class="tabs" id="tabs"></div>
+  <div class="clock tray"><button id="volbtn" aria-label="Mute sound" aria-pressed="false" title="Mute"></button><span id="clock"></span></div>
+</footer>
+<audio id="bgm" loop preload="none"></audio>
+
+<script src="js/content.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

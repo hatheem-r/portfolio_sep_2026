@@ -1,0 +1,42 @@
+# ── OS / editor ──────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+*.code-workspace
+
+# ── Audio generation intermediates ───────────────────────
+# WAV files produced by tools/make_beach.py before encoding to MP3
+audio/*.wav
+
+# ── Logs ─────────────────────────────────────────────────
+*.log
+
+# ── Python ───────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+build/
+.eggs/
+venv/
+.venv/
+env/
+
+# ── Node (if you ever add a local server / tooling) ──────
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# ── Zip exports (generated, not source) ──────────────────
+*.zip
+
+# ── Sensitive placeholders you may add locally ───────────
+# Uncomment if you do NOT want your CV tracked:
+# cv.pdf

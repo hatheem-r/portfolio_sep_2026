@@ -12,10 +12,11 @@ const CONTENT = {
   "facts": [["Location", "Sri Lanka"], ["Focus", "Machine Learning · Deep Learning · Agentic AI · RAG · Full-Stack"]],
   "photo": "images/me.jpeg",
   "cv": { "file": "cv.pdf", "updated": "Sep 2026" },
-  "welcome": { "small": "welcome to", "big": "My Den" },
+  "welcome": { "small": "welcome to", "big": "Hatheem's Space" },
   "music": { "src": "audio/calm-shore.mp3?v=5", "title": "Calm Shore", "volume": 0.008 },
   "boatSays": [
     "ahoy!",
+    "Greetings from Hatheem",
     "you're doing great :)",
     "drink some water!",
     "smooth sailing~",
@@ -28,7 +29,7 @@ const CONTENT = {
     "nice to see you!",
     "keep building ✦"
   ],
-  "ticker": "NOW BUILDING: a YouTube-to-Shorts clipper on free Hugging Face models  ★  SinTOX paper drafted for IEEE  ★  New: games folder. Try to beat my Minesweeper time  ★",
+  "ticker": "NOW BUILDING: SinTOX paper drafted for IEEE  ★  New: games folder. Try to beat my Minesweeper time  ★",
   "badges": [],
   "contact": {
     "email": "hatheemrafeek9999@gmail.com",

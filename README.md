@@ -15,7 +15,6 @@ images/               ← your photo, project covers, screenshots
 certs/                ← certificate images
 cv.pdf                ← (add this) your CV
 tools/make_beach.py   ← script that generated the beach sound (optional, needs numpy + scipy + ffmpeg)
-.nojekyll             ← tells GitHub Pages to serve files as-is
 ```
 
 ## Run it locally
@@ -30,14 +29,20 @@ python -m http.server 8000
 
 ## Control Panel (the easy way)
 
-Open **`/admin/`** on the live site, e.g. `https://hatheem-r.github.io/portfolio_sep_2026/admin/`.
+Open **`/admin`** on your site (your domain followed by `/admin`).
 Edit things, press **Publish**, and the site updates about a minute later. It works from a phone too.
 
-It saves straight to GitHub through the API, so there's nothing to run and nothing to `git push`.
+It saves straight to GitHub through the API as a normal commit on the default branch, so Vercel
+redeploys exactly as if you had pushed. There's nothing to run and nothing to `git push`.
+The repository it edits is set at the top of `admin/admin.js` (`REPO`).
 After publishing from the panel, run `git pull` on your laptop before you edit files there.
 
-Right now it edits **Certificates**, **Milestones** and **Competitions**. Projects, Journal,
-Profile, CV & Contact and Wallpaper & Sound come next.
+It edits everything on the site: **Projects** (cover, screenshots, GitHub link), **Journal**,
+**Certificates**, **Milestones**, **Competitions**, **Profile** (photo, facts, ticker), **CV & Contact**
+(upload a new CV) and **Wallpaper & Sound** (greeting, boat phrases, badges, volume).
+
+- **Preview** shows the real site with your unpublished changes, opened on the window you're editing.
+- **File → History** lists every publish; **Load** brings an older version back (with its pictures) to check and republish.
 
 **One-time setup: a token.** The panel needs a GitHub token that can change this one repository:
 
@@ -51,10 +56,12 @@ The token is stored only in your browser. Use **File → Sign out** to remove it
 "Remember me" on your own devices. If a token ever leaks, delete it on that same GitHub page.
 
 What the panel does for you:
-- Resizes images to at most 1600 px, converts them to WebP, and names them after the course (`certs/intro-to-mcp-scrimba.webp`).
+- Resizes pictures, converts big ones to WebP, and names and files them for you:
+  `certs/intro-to-mcp-scrimba.webp`, `images/projects/<project>/screenshot-name.webp`, `images/journal/<story>/photo.webp`, `images/me.webp`.
 - Turns a PDF certificate into an image (page 1).
 - Saves all your changes as one commit, with a readable message.
-- Deletes image files that nothing uses any more (you can untick this when publishing).
+- Replaces `cv.pdf` when you upload a new CV, and fills in the "updated" month.
+- Deletes picture files that nothing uses any more (you can untick this when publishing).
 - Stops you if `content.js` was changed somewhere else since you opened it, so nothing is overwritten.
 
 ## Updating content by hand

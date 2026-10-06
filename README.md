@@ -44,6 +44,15 @@ It edits everything on the site: **Projects** (cover, screenshots, GitHub link),
 - **Preview** shows the real site with your unpublished changes, opened on the window you're editing.
 - **File → History** lists every publish; **Load** brings an older version back (with its pictures) to check and republish.
 
+**AI assistant (optional).** Text boxes have a **Refine** button (fix grammar, clearer, shorter,
+"write it for me"), picture fields have **Pixelate…** (plain code with the site's palette, no AI),
+and the robot in the bottom-left corner opens a chat that can see the section you're in.
+Suggestions never change anything until you press *Use this*, and nothing goes live until you publish.
+It uses Hugging Face Inference Providers (free accounts get a small monthly credit). Set it up in
+**File → AI assistant settings…**: paste a fine-grained Hugging Face token with
+"Make calls to Inference Providers", pick a model, press *Test connection*.
+The model and the service address can be changed there too (any OpenAI-compatible endpoint).
+
 **One-time setup: a token.** The panel needs a GitHub token that can change this one repository:
 
 1. Open https://github.com/settings/personal-access-tokens/new (fine-grained token).

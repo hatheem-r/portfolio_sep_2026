@@ -84,6 +84,12 @@ const ICONS={
         "...XYYYXXYYYX...","..XYYYYYYYYYYX..","..XYYYYXXYYYYX..",".XYYYYYXXYYYYYX.",".XYYYYYYYYYYYYX.","XXXXXXXXXXXXXXXX"],
   info:[".....XXXXXX.....","...XXBBBBBBXX...","..XBBBBWWBBBBX..",".XBBBBBWWBBBBBX.",".XBBBBBBBBBBBBX.","XBBBBBWWWBBBBBBX","XBBBBBBWWBBBBBBX","XBBBBBBWWBBBBBBX",
         "XBBBBBBWWBBBBBBX","XBBBBBBWWBBBBBBX",".XBBBBWWWWBBBBX.",".XBBBBBBBBBBBBX.","..XBBBBBBBBBBX..","...XXBBBBBBXX...",".....XXXXXX....."],
+  robot:[".......RR.......",".......XX.......","...XXXXXXXXXX...","..XWWWWWWWWWWX..","..XWCCWWWWCCWX..","..XWCCWWWWCCWX..","XXXWWWWWWWWWWXXX","XBXWWXXXXXXWWXBX",
+         "XBXWWWWWWWWWWXBX","XXXXXXXXXXXXXXXX","...XBBBBBBBBX...","...XBYBBBBYBX...","...XBBBBBBBBX...","...XXXXXXXXXX...","....XX....XX....","....XX....XX...."],
+  pix:["XXXXXXXXXXXXXXXX","XRRRRYYYYGGGGBBX","XRRRRYYYYGGGGBBX","XRRRRYYYYGGGGBBX","XRRRRYYYYGGGGBBX","XYYYYGGGGBBBBRRX","XYYYYGGGGBBBBRRX","XYYYYGGGGBBBBRRX",
+       "XYYYYGGGGBBBBRRX","XGGGGBBBBRRRRYYX","XGGGGBBBBRRRRYYX","XGGGGBBBBRRRRYYX","XGGGGBBBBRRRRYYX","XXXXXXXXXXXXXXXX"],
+  wand:["............Y...","..........Y.Y.Y.","...........YYY..","..........YYYYY.","...........YYY..","..........XY.Y..",".........XWX....","........XWX.....",
+        ".......XWX......","......XWX.......",".....XWX........","....XWX.........","...XWX..........","..XXX..........."],
   err:[".....XXXXXX.....","...XXRRRRRRXX...","..XRRRRRRRRRRX..",".XRRWWRRRRWWRRX.",".XRRRWWRRWWRRRX.","XRRRRRWWWWRRRRRX","XRRRRRRWWRRRRRRX","XRRRRRRWWRRRRRRX",
        "XRRRRRWWWWRRRRRX",".XRRRWWRRWWRRRX.",".XRRWWRRRRWWRRX.","..XRRRRRRRRRRX..","...XXRRRRRRXX...",".....XXXXXX....."]
 };
@@ -349,6 +355,71 @@ async function prepareImage(file,max,allowPdf){
 const pickFiles=(accept,multiple)=>new Promise(res=>{ const i=document.createElement("input"); i.type="file"; i.accept=accept; i.multiple=!!multiple;
   i.onchange=()=>res([...i.files]); i.click(); });
 
+/* ---------- pixelate: plain canvas code, the same palette and dither pattern as the wallpaper ---------- */
+const PALETTES={
+  sunset:["#140c33","#2a1450","#46206a","#3d1a5e","#1a0d2b","#8f2c74","#c2477a","#e3605f","#f0795a","#f9b45a","#ffd77a","#fff27a","#fff8e1",
+          "#2bb3a3","#8fd3ff","#2a62c9","#0b1f8a","#33aa44","#8b5a2b","#7b7b7b","#c3c3c3","#ffffff","#111111"],
+  gb:["#0f380f","#306230","#8bac0f","#9bbc0f"],
+  mono:["#111111","#ffffff"]
+};
+const hexRgb=h=>[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
+function autoPalette(d,k){   // k-means on the small image: its own 16 main colours
+  const px=[]; for(let i=0;i<d.length;i+=4*Math.max(1,Math.floor(d.length/4/4000))) px.push([d[i],d[i+1],d[i+2]]);
+  let c=Array.from({length:k},(_,i)=>px[Math.floor(i*px.length/k)].slice());
+  for(let it=0;it<8;it++){ const s=c.map(()=>[0,0,0,0]);
+    for(const p of px){ let b=0,bd=1e9; c.forEach((q,j)=>{ const dd=(p[0]-q[0])**2+(p[1]-q[1])**2+(p[2]-q[2])**2; if(dd<bd){bd=dd;b=j;} }); const t=s[b]; t[0]+=p[0];t[1]+=p[1];t[2]+=p[2];t[3]++; }
+    c=s.map((t,j)=>t[3]?[t[0]/t[3],t[1]/t[3],t[2]/t[3]]:c[j]); }
+  return c;
+}
+function pixelateCanvas(img,blocks,paletteName,dither){
+  const w=Math.max(8,Math.min(blocks,img.naturalWidth)), h=Math.max(8,Math.round(w*img.naturalHeight/img.naturalWidth));
+  const s=document.createElement("canvas"); s.width=w; s.height=h;
+  const g=s.getContext("2d"); g.imageSmoothingQuality="high"; g.fillStyle="#fff"; g.fillRect(0,0,w,h); g.drawImage(img,0,0,w,h);
+  const im=g.getImageData(0,0,w,h), d=im.data;
+  const pal=paletteName==="auto"?autoPalette(d,16):PALETTES[paletteName].map(hexRgb);
+  const spread=paletteName==="mono"?160:paletteName==="gb"?70:44;
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++){
+    const i=(y*w+x)*4, t=dither?(BAYER[y&3][x&3]/16-.47)*spread:0;
+    const r=d[i]+t, gg=d[i+1]+t, b=d[i+2]+t; let best=pal[0], bd=1e9;
+    for(const q of pal){ const dd=(r-q[0])**2*.3+(gg-q[1])**2*.59+(b-q[2])**2*.11; if(dd<bd){bd=dd;best=q;} }
+    d[i]=best[0]; d[i+1]=best[1]; d[i+2]=best[2]; d[i+3]=255;
+  }
+  g.putImageData(im,0,0);
+  const k=Math.max(1,Math.min(10,Math.floor(1280/w))), out=document.createElement("canvas");   // crisp nearest-neighbour upscale
+  out.width=w*k; out.height=h*k; const o=out.getContext("2d"); o.imageSmoothingEnabled=false; o.drawImage(s,0,0,out.width,out.height);
+  return out;
+}
+function pixelateDialog(src){
+  return new Promise(resolve=>{
+    const body=el(`<div class="pix"><div class="pixview in"><span class="busy">Loading…</span></div>
+      <div class="pixctl">
+        <label>Pixel size<span class="rngw"><input type="range" min="24" max="320" step="4" value="160" data-p="size"><output>160 px wide</output></span></label>
+        <label>Colours<select class="inp" data-p="pal"><option value="sunset">Sunset (the site's palette)</option><option value="auto">Its own colours (16)</option><option value="gb">Game Boy green</option><option value="mono">Black and white</option></select></label>
+        <label class="chk"><input type="checkbox" data-p="dither" checked> Dither (the wallpaper's pattern)</label>
+        <button type="button" class="btn out small" data-p="orig">Hold to see the original</button>
+        <p class="hint">Saved as a new PNG next to the original. The original stays untouched.</p>
+      </div></div>`);
+    let img=null, out=null, done=false;
+    const view=$(".pixview",body), size=$("[data-p=size]",body), pal=$("[data-p=pal]",body), dith=$("[data-p=dither]",body);
+    const draw=()=>{ if(!img) return; $("output",body).textContent=size.value+" px wide";
+      try{ out=pixelateCanvas(img,+size.value,pal.value,dith.checked); view.innerHTML=""; view.append(out); }
+      catch(e){ view.innerHTML=`<span class="bad">Couldn't pixelate this image (${esc(e.message)}).</span>`; out=null; } };
+    const finish=v=>{ if(!done){ done=true; resolve(v); } };
+    const d=dialog({title:"Pixelate",icon:"pix",body,cls:"wide",buttons:[["Use pixelated","ok",true],["Cancel","cancel"]],
+      onAction:async a=>{
+        if(a!=="ok"){ finish(null); return true; }
+        if(!out) return false;
+        try{ const blob=await toBlob(out,"image/png"); finish({blob,ext:"png",url:URL.createObjectURL(blob),w:out.width,h:out.height,size:blob.size}); return true; }
+        catch(e){ view.innerHTML=`<span class="bad">This picture comes from another website, so the browser won't let it be changed. Upload it here first.</span>`; return false; }
+      }});
+    [size,pal,dith].forEach(c=>c.addEventListener("input",draw));
+    const ob=$("[data-p=orig]",body), show=on=>{ if(!img||!out) return; view.innerHTML=""; view.append(on?Object.assign(img.cloneNode(),{className:"orig"}):out); };
+    ob.addEventListener("pointerdown",()=>show(true)); ["pointerup","pointerleave"].forEach(t=>ob.addEventListener(t,()=>show(false)));
+    const i=new Image(); i.onload=()=>{ img=i; draw(); }; i.onerror=()=>{ view.innerHTML=`<span class="bad">Couldn't load this picture.</span>`; }; i.src=src;
+    void d;
+  });
+}
+
 /* ===================================================================== FIELD WIDGETS
    Each type: html(f,item,ctx,id) → markup, init(f,root,item,ctx) → {read(x), check?(x), commit?(x), busy?(), paste?(file), dispose?()}
    read() copies the form into x. commit() turns new files into paths (queued for upload). */
@@ -473,11 +544,11 @@ W.id={
 const folderOf=(f,x)=>typeof f.folder==="function"?f.folder(x):f.folder;
 W.image={ nolabel:true,
   html:(f)=>`<div class="imgw${f.square?" sq":""}"><div class="drop in" tabindex="0" role="button" aria-label="Choose ${esc(f.label.toLowerCase())}"></div>
-    <div class="imgbtns"><button type="button" class="btn out" data-b="browse">Browse…</button><button type="button" class="btn out" data-b="clear">Remove</button></div>
+    <div class="imgbtns"><button type="button" class="btn out" data-b="browse">Browse…</button><button type="button" class="btn out" data-b="pix" title="Turn it into pixel art"><span data-icon="pix"></span>Pixelate…</button><button type="button" class="btn out" data-b="clear">Remove</button></div>
     <p class="finfo" aria-live="polite"></p></div>`,
   init(f,root,it,ctx){
     const st={cur:getPath(it,f.k)||"",file:null,busy:"",err:""};
-    const drop=$(".drop",root), info=$(".finfo",root), clear=$("[data-b=clear]",root);
+    const drop=$(".drop",root), info=$(".finfo",root), clear=$("[data-b=clear]",root), pix=$("[data-b=pix]",root);
     const target=()=>{ const n=ctx.peek(); return `${folderOf(f,n)}/${slug(f.base(n))||f.fallback||"image"}.${st.file.ext}`; };
     const shown=()=>st.file?st.file.url:resolveSrc(st.cur);
     const paintInfo=()=>{ info.classList.toggle("bad",!!st.err);
@@ -489,7 +560,9 @@ W.image={ nolabel:true,
       drop.classList.toggle("has",!!cur&&!st.busy);
       drop.innerHTML=st.busy?`<span class="busy">${esc(st.busy)}<span class="prog in marquee"><i></i></span></span>`
         :cur?`<img src="${esc(cur)}" alt="Preview">`:`<span class="ph"><span data-icon="picture" class="big"></span>Drop ${f.pdf?"an image or PDF":"an image"} here<br><u>or click to browse</u></span>`;
-      hydrate(drop); clear.disabled=!cur||!!st.busy; paintInfo(); };
+      hydrate(drop); clear.disabled=pix.disabled=!cur||!!st.busy; paintInfo(); };
+    pix.addEventListener("click",async()=>{ const r=await pixelateDialog(shown()); if(!r) return;
+      if(st.file) URL.revokeObjectURL(st.file.url); st.file=r; st.err=""; paint(); ctx.changed?.(); });
     const set=async file=>{
       st.err=""; st.busy=isPdf(file)?"Reading PDF…":"Preparing image…"; paint();
       try{ const r=await prepareImage(file,f.max,f.pdf); if(st.file) URL.revokeObjectURL(st.file.url); st.file=r; }
@@ -523,8 +596,9 @@ W.gallery={
         <button type="button" class="gth in" data-g="pick" title="Replace picture">${r.busy?`<span class="prog in marquee"><i></i></span>`:(r.file||r.cur)?`<img src="${esc(r.file?r.file.url:resolveSrc(r.cur))}" alt="">`:`<span class="noimg">no image</span>`}</button>
         <div class="gmeta"><input class="inp" data-g="cap" placeholder="Caption" aria-label="Caption" value="${esc(r.caption)}">
           <small class="hint">${r.err?`<span class="bad">${esc(r.err)}</span>`:r.file?`new · ${kb(r.file.size)}`:esc(r.cur||"placeholder (no picture)")}</small></div>
-        <span class="gctl"><button type="button" class="btn out sq" data-g="up" title="Move up" aria-label="Move up"${i?"":" disabled"}>▲</button><button type="button" class="btn out sq" data-g="down" title="Move down" aria-label="Move down"${i<rows.length-1?"":" disabled"}>▼</button><button type="button" class="btn out sq" data-g="del" title="Remove" aria-label="Remove">✕</button></span></div>`).join("")
+        <span class="gctl"><button type="button" class="btn out sq" data-g="pix" title="Pixelate…" aria-label="Pixelate"${(r.file||r.cur)&&!r.busy?"":" disabled"}><span data-icon="pix"></span></button><button type="button" class="btn out sq" data-g="up" title="Move up" aria-label="Move up"${i?"":" disabled"}>▲</button><button type="button" class="btn out sq" data-g="down" title="Move down" aria-label="Move down"${i<rows.length-1?"":" disabled"}>▼</button><button type="button" class="btn out sq" data-g="del" title="Remove" aria-label="Remove">✕</button></span></div>`).join("")
         ||`<p class="hint gempty">No pictures yet.</p>`;
+      hydrate(rowsEl);
     };
     const load=async(r,file)=>{ r.busy=true; r.err=""; paint();
       try{ const p=await prepareImage(file,f.max,false); if(r.file) URL.revokeObjectURL(r.file.url); r.file=p; } catch(e){ r.err=e.message; }
@@ -534,6 +608,8 @@ W.gallery={
     rowsEl.addEventListener("input",e=>{ if(e.target.dataset.g==="cap") rows[+e.target.closest(".grow").dataset.r].caption=e.target.value; });
     rowsEl.addEventListener("click",async e=>{ const b=e.target.closest("[data-g]"); if(!b||b.dataset.g==="cap") return; const i=+b.closest(".grow").dataset.r, a=b.dataset.g;
       if(a==="pick"){ const [file]=await pickFiles("image/*"); if(file) load(rows[i],file); return; }
+      if(a==="pix"){ const r=rows[i], out=await pixelateDialog(r.file?r.file.url:resolveSrc(r.cur)); if(!out) return;
+        if(r.file) URL.revokeObjectURL(r.file.url); r.file=out; r.err=""; paint(); ctx.changed?.(); return; }
       if(a==="del"){ const [r]=rows.splice(i,1); if(r.file) URL.revokeObjectURL(r.file.url); }
       if(a==="up"&&i>0) [rows[i-1],rows[i]]=[rows[i],rows[i-1]];
       if(a==="down"&&i<rows.length-1) [rows[i+1],rows[i]]=[rows[i],rows[i+1]];
@@ -615,7 +691,9 @@ function buildForm(fields,item,ctx,mode){
   ctx.form=form; ctx.peek=()=>{ const n=clone(item); insts.forEach(([,i])=>i.read(n)); return n; };
   const row=f=>{ const w=W[f.t], id=fid(f);
     const lab=w.nolabel?`<span class="fl">${esc(f.label)}</span>`:`<label class="fl" for="${id}">${esc(f.label)}${f.req?"<i>*</i>":""}</label>`;
-    return `<div class="frow${f.side?" side":""}" data-f="${esc(f.k)}">${f.side?"":lab}<div class="fv">${w.html(f,item,ctx,id)}${f.hint?`<small class="hint">${esc(f.hint)}</small>`:""}</div></div>`; };
+    const extra=f.ai?`<div class="fextra">${f.hint?`<small class="hint">${esc(f.hint)}</small>`:"<span></span>"}<button type="button" class="btn out small aib" data-refine="${esc(f.k)}" aria-haspopup="menu" aria-expanded="false" title="Improve this text with AI"><span data-icon="wand"></span>Refine</button></div>`
+      :f.hint?`<small class="hint">${esc(f.hint)}</small>`:"";
+    return `<div class="frow${f.side?" side":""}" data-f="${esc(f.k)}">${f.side?"":lab}<div class="fv">${w.html(f,item,ctx,id)}${extra}</div></div>`; };
   const groups=[...new Set(fields.map(f=>f.g||""))];
   const rowsOf=g=>fields.filter(f=>(f.g||"")===g&&!f.side).map(row).join("");
   function showTab(i){ $$("[data-tab]",form).forEach(t=>t.setAttribute("aria-selected",String(+t.dataset.tab===i))); $$("[data-panel]",form).forEach(p=>p.hidden=+p.dataset.panel!==i); }
@@ -631,6 +709,7 @@ function buildForm(fields,item,ctx,mode){
   }
   hydrate(form);
   insts=fields.map(f=>[f,W[f.t].init(f,$(`[data-f="${CSS.escape(f.k)}"]`,form),item,ctx)]);
+  form.addEventListener("click",e=>{ const b=e.target.closest("[data-refine]"); if(b) refineMenu(b,fields.find(f=>f.k===b.dataset.refine),ctx); });
   return {
     el:form,
     read:x=>insts.forEach(([,i])=>i.read(x)),
@@ -668,11 +747,11 @@ const LISTS={
       {k:"id",t:"id",label:"Page name",g:"General",from:"title",prefix:"project-"},
       {k:"kind",t:"text",label:"Kind",g:"General",ph:"e.g. Research, Agents, Full-stack",suggest:true},
       {k:"year",t:"year",label:"Year",g:"General"},
-      {k:"blurb",t:"text",label:"Card line",g:"General",ph:"One short line for the card"},
-      {k:"summary",t:"textarea",label:"Summary",rows:3,g:"General",hint:"The opening line on the project page."},
+      {k:"blurb",t:"text",label:"Card line",g:"General",ph:"One short line for the card",ai:true,genLabel:"Write it from the project details",gen:"Write the one-line card text for this project: at most 12 words, no full stop needed."},
+      {k:"summary",t:"textarea",label:"Summary",rows:3,g:"General",hint:"The opening line on the project page.",ai:true,genLabel:"Write it from the project details",gen:"Write the one or two sentence summary shown at the top of this project's page."},
       {k:"stack",t:"tags",label:"Stack",g:"General",ph:"Python, LangGraph, React",hint:"Separate with commas. The first four show on the card."},
-      {k:"description",t:"paras",label:"About",rows:9,g:"Page",hint:"Leave a blank line between paragraphs."},
-      {k:"highlights",t:"lines",label:"Highlights",rows:4,g:"Page",hint:"One per line."},
+      {k:"description",t:"paras",label:"About",rows:9,g:"Page",hint:"Leave a blank line between paragraphs.",ai:true},
+      {k:"highlights",t:"lines",label:"Highlights",rows:4,g:"Page",hint:"One per line.",ai:true,genLabel:"Pick highlights from the details",gen:"List 2 to 4 concrete highlights of this project. Use only facts that are in the details."},
       {k:"info",t:"pairs",label:"Properties",g:"Page",suggest:["Role","Team","Status","Mentor","Dataset"],hint:"The Properties box beside the text, e.g. Role → Project lead."},
       {k:"links.repo",t:"url",label:"GitHub",g:"Links",ph:"https://github.com/hatheem-r/…",hint:"Adds a button on the project page."},
       {k:"links.demo",t:"url",label:"Live demo",g:"Links"},
@@ -688,12 +767,12 @@ const LISTS={
     flag:j=>j.draft?"DRAFT":"",
     blank:()=>({id:"",date:today(),title:"",tag:"",body:[],images:[]}),
     fields:[
-      {k:"title",t:"text",label:"Title",req:true,g:"Story"},
+      {k:"title",t:"text",label:"Title",req:true,g:"Story",ai:true,genLabel:"Suggest a title from the story",gen:"Suggest a short, specific title for this journal story (at most 8 words)."},
       {k:"id",t:"id",label:"Page name",g:"Story",from:"title",prefix:"post-"},
       {k:"date",t:"date",label:"Date",g:"Story"},
       {k:"tag",t:"text",label:"Tag",g:"Story",ph:"e.g. workshop",suggest:true},
       {k:"draft",t:"check",label:"Draft",text:"Show a DRAFT banner on this story",g:"Story"},
-      {k:"body",t:"paras",label:"Story",rows:12,req:true,g:"Story",hint:"Leave a blank line between paragraphs."},
+      {k:"body",t:"paras",label:"Story",rows:12,req:true,g:"Story",hint:"Leave a blank line between paragraphs.",ai:true},
       {k:"images",t:"gallery",label:"Photos",g:"Photos",folder:j=>`images/journal/${j.id}`,max:1920,fallback:"photo"}
     ]},
   certificates:{ title:"Certificates", icon:"cert", noun:"certificate", addAt:"top", layout:"tiles", win:()=>"awards",
@@ -737,13 +816,13 @@ const PAGES={
     blurb:"Your name, intro, photo and facts on the Home window.",
     fields:[
       {k:"name",t:"text",label:"Name",req:true,g:"Identity"},
-      {k:"role",t:"text",label:"Role",g:"Identity",hint:"The bold line under your name."},
+      {k:"role",t:"text",label:"Role",g:"Identity",hint:"The bold line under your name.",ai:true},
       {k:"handle",t:"text",label:"Handle",g:"Identity",hint:"Shown as C:\\USERS\\HANDLE> whoami."},
-      {k:"about",t:"textarea",label:"About",rows:3,g:"About"},
+      {k:"about",t:"textarea",label:"About",rows:3,g:"About",ai:true},
       {k:"facts",t:"pairs",label:"Facts",g:"About",suggest:["Location","Focus","Next"],hint:"The list under your intro, e.g. Location → Sri Lanka."},
       {k:"photo",t:"image",label:"Photo",g:"Photo",folder:"images",base:()=>"me",max:800,square:true,
        empty:"No photo: the site shows the pixel avatar."},
-      {k:"ticker",t:"textarea",label:"Ticker",rows:2,g:"Home window",hint:"The scrolling news line at the top. Separate items with ★."}
+      {k:"ticker",t:"textarea",label:"Ticker",rows:2,g:"Home window",hint:"The scrolling news line at the top. Separate items with ★.",ai:true,genLabel:"Write it from my latest work",gen:"Write the scrolling news ticker for the Home window: 3 short items about the latest projects and stories, in plain text, separated by two spaces, a ★ and two spaces, starting with NOW BUILDING:."}
     ]},
   contact:{ title:"CV & Contact", icon:"mail", line:"Update CV & contact", win:"contact",
     blurb:"Your CV file and the Address Book entries.",
@@ -760,7 +839,7 @@ const PAGES={
     blurb:"The wallpaper greeting, the boat's phrases, the badges on Home, and the background sound.",
     fields:[
       {k:"welcome",t:"welcome",label:"Greeting",g:"Wallpaper"},
-      {k:"boatSays",t:"lines",label:"Boat says",rows:7,g:"Wallpaper",hint:"One phrase per line. The boat says one when clicked."},
+      {k:"boatSays",t:"lines",label:"Boat says",rows:7,g:"Wallpaper",hint:"One phrase per line. The boat says one when clicked.",ai:true,genLabel:"Write new phrases",gen:"Write 12 short, wholesome phrases a little pixel boat on a sunset sea could say to visitors. At most 5 words each, lowercase, gentle and a bit funny."},
       {k:"badges",t:"badges",label:"Badges",g:"Home window badges",hint:"Little 88×31 buttons under your intro."},
       {k:"music.title",t:"text",label:"Sound name",g:"Background sound"},
       {k:"music.volume",t:"range",label:"Volume",min:0,max:0.1,step:0.001,g:"Background sound",hint:"Visitors can mute it, but not change the volume."}
@@ -798,7 +877,7 @@ function dialog({title,icon:ic,body,buttons=[],cls="",onAction}){
   const act=async a=>{ const r=onAction?await onAction(a,api):true; if(r!==false) close(); };
   ov.addEventListener("click",e=>{ const b=e.target.closest("[data-dlg]"); if(b&&!b.disabled) act(b.dataset.dlg); });
   const key=e=>{
-    if(topModal()!==ov) return;
+    if(topModal()!==ov||S.popup) return;
     if(e.key==="Escape"){ e.preventDefault(); e.stopPropagation(); act("cancel"); }
     else if(e.key==="Enter"&&!e.target.closest("button,textarea,select,a,summary,[role=button],input[type=color],input[type=range]")){ const d=$(".dfoot .def",ov); if(d&&!d.disabled){ e.preventDefault(); act(d.dataset.dlg); } }
     else if(e.key==="Tab"){ const f=$$("button:not([disabled]),input:not([disabled]):not([type=hidden]),select,textarea,a[href],[tabindex='0'],iframe",ov).filter(x=>x.offsetParent);
@@ -840,12 +919,186 @@ document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&S.popup){ const a=
 const openSite=()=>window.open(SITE,"_blank","noopener");
 const fileMenu=()=>[{label:"Publish…",icon:"save",key:"Ctrl+S",disabled:!isDirty(),run:openPublish},
   {label:"Preview",icon:"pc",key:"Ctrl+P",run:()=>openPreview()},
-  {label:"History…",icon:"clock",run:openHistory},"-",
+  {label:"History…",icon:"clock",run:openHistory},{label:"AI assistant settings…",icon:"robot",run:()=>aiSettings()},"-",
   {label:"Reload from GitHub",run:reload},{label:"Discard unpublished changes",icon:"del",disabled:!isDirty(),run:discard},"-",
   {label:"Open my site",icon:"pc",run:openSite},{label:"Sign out",icon:"key",run:signOut}];
 const helpMenu=()=>[{label:"How publishing works",icon:"info",run:help},{label:"About Control Panel",icon:"cpl",run:about}];
 const startMenu=()=>[{label:"Control Panel",icon:"cpl",run:()=>go("")},"-",...ORDER.map(k=>({label:SEC[k].title,icon:SEC[k].icon,run:()=>go(k)})),"-",
-  {label:"History…",icon:"clock",run:openHistory},{label:"Open my site",icon:"pc",run:openSite},{label:"Sign out",icon:"key",run:signOut}];
+  {label:"AI assistant",icon:"robot",run:()=>openChat(true)},{label:"History…",icon:"clock",run:openHistory},{label:"Open my site",icon:"pc",run:openSite},{label:"Sign out",icon:"key",run:signOut}];
+
+/* ===================================================================== AI ASSISTANT
+   Talks to any OpenAI-compatible chat endpoint; by default Hugging Face Inference Providers.
+   The Hugging Face token is stored only in this browser, like the GitHub one. Suggestions never change anything by themselves. */
+const AI_DEFAULT={base:"https://router.huggingface.co/v1",model:"openai/gpt-oss-120b:cheapest"};
+const AI_MODELS=[["openai/gpt-oss-120b:cheapest","GPT-OSS 120B: good writing, low cost"],["openai/gpt-oss-20b:cheapest","GPT-OSS 20B: faster and cheaper"],
+  ["meta-llama/Llama-3.3-70B-Instruct:cheapest","Llama 3.3 70B Instruct"],["Qwen/Qwen3-235B-A22B-Instruct-2507:cheapest","Qwen3 235B Instruct"]];
+const HF_TOKEN_URL="https://huggingface.co/settings/tokens/new?ownUserPermissions=inference.serverless.write&tokenType=fineGrained";
+const aiCfg=()=>{ try{ return {...AI_DEFAULT,...JSON.parse(localStorage.getItem("cp_ai")||"{}")}; }catch(e){ return {...AI_DEFAULT}; } };
+const aiReady=()=>!!mem.get("cp_hf_token");
+const VOICE=()=>`You help ${S.draft?.name||"the site owner"} write the text on his personal portfolio website, a playful Windows 98-style desktop.
+His style: plain, direct and specific. Short sentences. First person where it fits. No hype or buzzwords (passionate, cutting-edge, leverage, seamless, revolutionize, delve, journey). No emojis. No exclamation marks unless the original has them.
+Keep every fact, name, number and technical term exactly as given. Never invent achievements, numbers, people or details.`;
+
+async function aiChat(messages,{max=1200,temperature=.5}={}){
+  const cfg=aiCfg(), tok=mem.get("cp_hf_token");
+  if(!tok) throw new Error("Add a Hugging Face token in AI settings first.");
+  const body={model:cfg.model,messages,max_tokens:max,temperature,stream:false};
+  if(/gpt-oss/i.test(cfg.model)) body.reasoning_effort="low";
+  let r;
+  try{ r=await fetch(cfg.base.replace(/\/+$/,"")+"/chat/completions",{method:"POST",headers:{Authorization:"Bearer "+tok,"Content-Type":"application/json"},body:JSON.stringify(body)}); }
+  catch(e){ throw new Error("Couldn't reach the AI service. Check your connection. If it keeps failing, the browser may be blocking this service; try another model or endpoint in AI settings."); }
+  if(!r.ok){
+    let m=""; try{ const j=await r.json(); m=j.error?.message||(typeof j.error==="string"?j.error:"")||j.message||""; }catch(e){}
+    if(r.status===401||r.status===403) throw new Error("The AI service didn't accept your Hugging Face token. Check it in AI settings (it needs “Make calls to Inference Providers”).");
+    if(r.status===402) throw new Error("Your free monthly Hugging Face credits are used up. They refill next month, or you can add credits on Hugging Face.");
+    if(r.status===429) throw new Error("Too many requests right now. Wait a minute and try again.");
+    if(r.status===400||r.status===404||r.status===422) throw new Error(`The model “${cfg.model}” isn't available right now${m?` (${m})`:""}. Pick another one in AI settings.`);
+    throw new Error("The AI service had a problem"+(m?`: ${m}`:` (error ${r.status})`)+". Try again.");
+  }
+  const j=await r.json();
+  const t=String(j.choices?.[0]?.message?.content||"").replace(/<think>[\s\S]*?<\/think>/g,"").trim();
+  if(!t) throw new Error("The model returned an empty answer. Try again, or pick another model in AI settings.");
+  return t;
+}
+function aiSettings(then){
+  const cfg=aiCfg(), known=AI_MODELS.some(([v])=>v===cfg.model);
+  const body=el(`<div class="msgrow"><span data-icon="robot" class="big"></span><div>
+    <p>The assistant uses free models on Hugging Face. Free accounts get a small monthly credit, enough for lots of short edits.</p>
+    <div class="form">
+      <label class="fl" for="ai_tok">HF token</label><div class="fv"><input class="inp" id="ai_tok" type="password" autocomplete="off" spellcheck="false" value="${esc(mem.get("cp_hf_token")||"")}" placeholder="hf_…">
+        <small class="hint"><a href="${HF_TOKEN_URL}" target="_blank" rel="noopener">Create one ↗</a> (fine-grained, with “Make calls to Inference Providers” ticked).</small></div>
+      <label class="fl" for="ai_model">Model</label><div class="fv"><select class="inp" id="ai_model">${AI_MODELS.map(([v,t])=>`<option value="${esc(v)}"${v===cfg.model?" selected":""}>${esc(t)}</option>`).join("")}<option value="custom"${known?"":" selected"}>Other model…</option></select>
+        <input class="inp" id="ai_custom" placeholder="owner/model-name" value="${known?"":esc(cfg.model)}"${known?" hidden":""}></div>
+      <span></span><div class="fv"><label class="chk"><input type="checkbox" id="ai_keep" checked> Remember on this device</label></div>
+    </div>
+    <details class="how"><summary>Advanced: AI service address</summary><div class="fv" style="margin-top:6px"><input class="inp" id="ai_base" value="${esc(cfg.base)}" spellcheck="false">
+      <small class="hint">Any OpenAI-compatible endpoint works. Default: ${esc(AI_DEFAULT.base)}</small></div></details>
+    <p class="aitest"><button type="button" class="btn out small" data-test>Test connection</button> <span class="hint" data-res></span></p>
+  </div></div>`);
+  const sel=$("#ai_model",body), cus=$("#ai_custom",body);
+  sel.addEventListener("change",()=>{ cus.hidden=sel.value!=="custom"; if(!cus.hidden) cus.focus(); });
+  const save=()=>{ const model=sel.value==="custom"?cus.value.trim():sel.value, base=$("#ai_base",body).value.trim()||AI_DEFAULT.base, tok=$("#ai_tok",body).value.trim();
+    try{ localStorage.setItem("cp_ai",JSON.stringify({model:model||AI_DEFAULT.model,base})); }catch(e){}
+    if(tok) mem.set("cp_hf_token",tok,$("#ai_keep",body).checked); else mem.del("cp_hf_token"); };
+  $("[data-test]",body).onclick=async()=>{ const res=$("[data-res]",body); save(); res.className="hint"; res.textContent="Asking the model…";
+    try{ const t=await aiChat([{role:"user",content:"Reply with exactly: OK"}],{max:300,temperature:0}); res.className="hint good"; res.textContent=`✓ Connected. ${aiCfg().model} replied “${t.slice(0,40)}”.`; }
+    catch(e){ res.className="hint bad"; res.textContent=e.message; } };
+  dialog({title:"AI assistant settings",icon:"robot",body,cls:"aiset",buttons:[["OK","ok",true],["Cancel","cancel"]],
+    onAction:a=>{ if(a==="ok"){ save(); renderChatHead(); if(then&&aiReady()) setTimeout(then,0); } return true; }});
+}
+
+/* ---------- Refine: per-field suggestions ---------- */
+const fieldControl=(form,f)=>$(`[data-f="${CSS.escape(f.k)}"] textarea.inp, [data-f="${CSS.escape(f.k)}"] input.inp`,form);
+const fmtRule=f=>f.t==="paras"?"Separate paragraphs with one blank line.":f.t==="lines"?"Put one item per line, with no bullets or numbering.":f.t==="text"?"Return a single line.":"";
+function aiContext(ctx){
+  if(ctx.list){ const n=ctx.peek(); ["images","cover","thumb","image"].forEach(k=>delete n[k]); return n; }
+  const d=S.draft; return {name:d.name,role:d.role,about:d.about,facts:d.facts,projects:(d.projects||[]).slice(0,10).map(p=>({title:p.title,blurb:p.blurb})),journal:(d.journal||[]).slice(0,5).map(j=>j.title)};
+}
+function cleanAI(t,f){
+  t=t.trim().replace(/^```\w*\n?|```$/g,"").replace(/^(here(’|')?s|here is)[^:\n]*:\s*/i,"").trim();
+  if(/^["“].*["”]$/s.test(t)&&f.t!=="paras") t=t.slice(1,-1).trim();
+  if(f.t==="lines") t=t.split("\n").map(l=>l.replace(/^\s*(?:[-*•]|\d+[.)])\s+/,"").trim()).filter(Boolean).join("\n");
+  if(f.t==="text") t=t.replace(/\s*\n\s*/g," ");
+  return t;
+}
+const REFINE={
+  fix:["Fix spelling & grammar","Fix spelling, grammar and punctuation only. Keep every word that is already correct. Do not change the wording, tone or length."],
+  clear:["Make it clearer","Rewrite it to be clearer and more direct. Keep the meaning, every fact and roughly the same length."],
+  short:["Make it shorter","Make it noticeably shorter while keeping the key facts."]
+};
+function refineMenu(anchor,f,ctx){
+  const has=!!fieldControl(ctx.form,f)?.value.trim();
+  popup(anchor,[...Object.entries(REFINE).map(([k,[label]])=>({label,disabled:!has,run:()=>refine(f,ctx,k)})),
+    ...(f.gen?[{label:f.genLabel||"Write it for me",icon:"wand",run:()=>refine(f,ctx,"gen")}]:[]),"-",
+    {label:"Something else…",run:()=>refine(f,ctx,"custom")},{label:"AI settings…",icon:"robot",run:()=>aiSettings()}]);
+}
+function refine(f,ctx,mode){
+  if(!aiReady()) return aiSettings(()=>refine(f,ctx,mode));
+  const ctl=fieldControl(ctx.form,f), original=ctl.value;
+  const label=mode==="gen"?(f.genLabel||"Write it for me"):REFINE[mode]?.[0]||"";
+  const body=el(`<div class="refine">
+    <div class="rinstr"><label for="r_ins">What should change?</label><span class="pair"><input class="inp" id="r_ins" value="${esc(mode==="custom"?"":label)}" placeholder="e.g. make it sound less formal"${mode==="custom"?"":" readonly"}>${mode==="custom"?`<button type="button" class="btn out small" data-go>Go</button>`:""}</span></div>
+    <div class="rcols"><div><b>Now</b><div class="rorig in">${original.trim()?esc(original):`<span class="hint">(empty)</span>`}</div></div>
+      <div><b>Suggestion</b> <small class="hint">you can edit it</small><textarea class="inp rsug" rows="${Math.min(14,Math.max(3,(f.rows||2)+1))}"></textarea><div class="rbusy" hidden><span class="prog in marquee"><i></i></span><small class="hint">Thinking…</small></div></div></div>
+    <p class="ferr" role="alert" hidden></p></div>`);
+  const sug=$(".rsug",body), busy=$(".rbusy",body), err=$(".ferr",body), ins=$("#r_ins",body);
+  let tries=0;
+  const run=async()=>{
+    const what=mode==="custom"?ins.value.trim():mode==="gen"?f.gen:REFINE[mode][1];
+    if(!what){ ins.focus(); return; }
+    busy.hidden=false; sug.disabled=true; err.hidden=true;
+    const where=`${SEC[S.view]?.title||"Site"} → ${f.label}`;
+    const user=mode==="gen"
+      ?`${f.gen}\nThis is for the “${where}” field.\n${fmtRule(f)}\nReturn only the text, with no quotes, labels or comments.\n\nDetails:\n${JSON.stringify(aiContext(ctx))}`
+      :`${what}\nThis is the “${where}” field.\n${fmtRule(f)}\nReturn only the new text, with no quotes, labels or comments.\n\nText:\n"""\n${original}\n"""`;
+    try{ sug.value=cleanAI(await aiChat([{role:"system",content:VOICE()},{role:"user",content:user}],{temperature:tries++?.8:.4}),f); }
+    catch(e){ err.textContent=e.message; err.hidden=false; }
+    busy.hidden=true; sug.disabled=false; sug.focus();
+  };
+  dialog({title:"Refine · "+f.label,icon:"wand",body,cls:"wide refdlg",buttons:[["Use this","ok",true],["Try again","again"],["Cancel","cancel"]],
+    onAction:a=>{
+      if(a==="again"){ run(); return false; }
+      if(a!=="ok") return true;
+      if(!sug.value.trim()) return false;
+      ctl.value=sug.value.trim(); ctl.dispatchEvent(new Event("input",{bubbles:true})); ctl.dispatchEvent(new Event("change",{bubbles:true})); ctl.focus();
+      return true;
+    }});
+  if(mode==="custom"){ $("[data-go]",body).onclick=run; ins.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); e.stopPropagation(); run(); } }); setTimeout(()=>ins.focus(),10); }
+  else run();
+}
+
+/* ---------- chat in the sidebar ---------- */
+const AI={msgs:[],busy:false};
+function md(t){
+  const h=esc(t).replace(/`([^`\n]+)`/g,"<code>$1</code>").replace(/\*\*([^*\n]+)\*\*/g,"<b>$1</b>");
+  return h.split(/\n{2,}/).map(p=>/^\s*(?:[-*•]|\d+[.)]) /.test(p)?`<ul>${p.split("\n").map(l=>`<li>${l.replace(/^\s*(?:[-*•]|\d+[.)]) /,"")}</li>`).join("")}</ul>`:`<p>${p.replace(/\n/g,"<br>")}</p>`).join("");
+}
+function chatSystem(){
+  const N=SEC[S.view], it=LISTS[S.view]?S.draft[S.view][S.sel]:null;
+  let data=N?(LISTS[S.view]?(it||S.draft[S.view]):Object.fromEntries(PAGES[S.view].keys.map(k=>[k,S.draft[k]]))):{name:S.draft.name,role:S.draft.role,sections:ORDER.map(k=>SEC[k].title)};
+  let json=JSON.stringify(data); if(json.length>6000) json=json.slice(0,6000)+"…";
+  return `${VOICE()}
+You are the assistant inside his Control Panel, the editor for that website. Answer briefly and concretely. When he asks for text, give text he can paste.
+How the Control Panel works: sections (Projects, Journal, Certificates, Milestones, Competitions, Profile, CV & Contact, Wallpaper & Sound) hold the content; items open in a dialog; text boxes have a Refine button; picture fields have Pixelate; Preview shows the site with unpublished changes; Publish saves everything to GitHub as one commit and Vercel redeploys in about a minute; File → History can load an older version back.
+He is in: ${N?N.title:"the Control Panel home"}${it?` (selected: ${LISTS[S.view].name(it)})`:""}. Content of that section (JSON, unpublished edits included):
+${json}`;
+}
+function renderChatHead(){ const m=$("#aichat .aimodel"); if(m) m.textContent=aiReady()?aiCfg().model.split("/").pop().replace(/:.*$/,""):"not set up"; }
+function renderChat(){
+  const log=$("#aichat .ailog"); if(!log) return;
+  log.innerHTML=(AI.msgs.length?AI.msgs.map((m,i)=>m.role==="user"?`<div class="msg u">${md(m.content)}</div>`
+      :m.role==="error"?`<div class="msg e"><span data-icon="err"></span><div>${esc(m.content)}${/settings/i.test(m.content)?` <a href="#" data-ai="settings">Open AI settings</a>`:""}</div></div>`
+      :`<div class="msg a">${md(m.content)}<button type="button" class="btn out small" data-copy="${i}">Copy</button></div>`).join("")
+    :`<div class="msg a intro"><p>Hi! Ask me anything about your site, or ask me to draft some text. I can see the section you're in.</p></div>
+      <div class="chips">${["Proofread this section","Suggest a better card line","Ideas for my next journal story","How do I add a certificate?"].map(c=>`<button type="button" class="btn out small" data-chip>${c}</button>`).join("")}</div>`)
+    +(AI.busy?`<div class="msg a busy"><span class="prog in marquee"><i></i></span></div>`:"");
+  hydrate(log); log.scrollTop=log.scrollHeight;
+}
+async function sendChat(text){
+  text=text.trim(); if(!text||AI.busy) return;
+  if(!aiReady()) return aiSettings(()=>sendChat(text));
+  AI.msgs.push({role:"user",content:text}); AI.busy=true; renderChat();
+  try{ AI.msgs.push({role:"assistant",content:await aiChat([{role:"system",content:chatSystem()},...AI.msgs.filter(m=>m.role!=="error").slice(-12)],{max:1500,temperature:.6})}); }
+  catch(e){ AI.msgs.push({role:"error",content:e.message}); }
+  AI.busy=false; renderChat();
+}
+function openChat(open){
+  const c=$("#aichat"), r=$("#robot"); if(!c) return;
+  open=open??c.hidden; c.hidden=!open; r.hidden=open; r.setAttribute("aria-expanded",String(open)); $("#sidebar").classList.toggle("chatting",open);
+  if(open){ renderChatHead(); renderChat(); $("#aichat textarea").focus(); } else r.focus();
+}
+function wireChat(){
+  const c=$("#aichat"), ta=$("textarea",c);
+  $("#robot").onclick=()=>openChat(true);
+  c.addEventListener("click",e=>{ const b=e.target.closest("[data-ai],[data-chip],[data-copy]"); if(!b) return; e.preventDefault();
+    if(b.dataset.ai==="close") openChat(false);
+    if(b.dataset.ai==="settings") aiSettings();
+    if(b.dataset.ai==="clear"){ AI.msgs=[]; renderChat(); ta.focus(); }
+    if(b.dataset.chip!==undefined) sendChat(b.textContent);
+    if(b.dataset.copy!==undefined){ navigator.clipboard?.writeText(AI.msgs[+b.dataset.copy].content).then(()=>{ b.textContent="Copied"; setTimeout(()=>b.textContent="Copy",1200); },()=>{}); } });
+  $("form",c).addEventListener("submit",e=>{ e.preventDefault(); const v=ta.value; ta.value=""; sendChat(v); });
+  ta.addEventListener("keydown",e=>{ if(e.key==="Enter"&&!e.shiftKey){ e.preventDefault(); $("form",c).requestSubmit(); } if(e.key==="Escape") openChat(false); });
+}
 
 /* ---------- shell ---------- */
 function buildShell(){
@@ -860,7 +1113,15 @@ function buildShell(){
       <button class="btn out tb" id="pubbtn" disabled title="Publish your changes (Ctrl+S)"><span data-icon="save"></span><span class="lbl">Publish</span><b id="pubn"></b></button>
       <span class="addrlab">Address</span><div class="addr in" id="addr">Control Panel</div>
     </div>
-    <div class="cp"><aside class="web" id="web"></aside><div class="pane in" id="pane"></div></div>
+    <div class="cp"><aside class="sidebar" id="sidebar"><div class="web" id="web"></div>
+      <section class="aichat" id="aichat" hidden aria-label="AI assistant">
+        <div class="aihead"><span data-icon="robot"></span><b>Assistant</b><small class="aimodel"></small>
+          <button type="button" class="btn out small" data-ai="clear" title="Start a new chat">New</button><button type="button" class="btn out sq" data-ai="settings" title="AI settings" aria-label="AI settings">⚙</button><button type="button" class="btn out sq" data-ai="close" title="Close" aria-label="Close the assistant">✕</button></div>
+        <div class="ailog in" aria-live="polite"></div>
+        <form class="aiform"><textarea class="inp" rows="2" placeholder="Ask anything… (Enter to send)" aria-label="Message"></textarea><button class="btn out" type="submit">Send</button></form>
+      </section>
+      <button type="button" class="robot" id="robot" title="AI assistant" aria-label="Open the AI assistant" aria-expanded="false"><span data-icon="robot" class="big"></span><span class="rl">Ask AI</span></button>
+    </aside><div class="pane in" id="pane"></div></div>
     <div class="status"><div class="st" id="st1"></div><div class="st" id="st2" aria-live="polite"></div><div class="grip"></div></div>
   </section>
   <footer class="task out">
@@ -876,7 +1137,7 @@ function buildShell(){
   $("#pubbtn").onclick=openPublish;
   const tick=()=>{ $("#clock").textContent=new Date().toLocaleTimeString([], {hour:"numeric",minute:"2-digit"}); };
   tick(); setInterval(tick,15000);
-  wirePane();
+  wirePane(); wireChat();
 }
 function go(v){ history.pushState(null,"",v?"#"+v:location.pathname+location.search); route(); }
 function route(){ const k=location.hash.slice(1); S.view=SEC[k]?k:"home"; S.sel=-1; render(); $("#pane").scrollTop=0; }
@@ -1202,7 +1463,7 @@ async function discard(){
 }
 async function signOut(){
   if(isDirty()&&await msgbox("Sign out","<p>You have unpublished changes. Sign out and lose them?</p>","warn",[["Sign out","yes",true],["Cancel","no"]])!=="yes") return;
-  mem.del("cp_token"); S.draft=null; S.origText=""; $("#main").hidden=true; showLogin();
+  mem.del("cp_token"); mem.del("cp_hf_token"); S.draft=null; S.origText=""; $("#main").hidden=true; showLogin();
 }
 function help(){ msgbox("How publishing works",`<ol class="steps">
   <li>Open a section and add, edit, reorder or delete things. Pictures are resized and named for you.</li>

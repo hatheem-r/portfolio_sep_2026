@@ -1,6 +1,6 @@
 /* HatheemOS 98 · Control Panel
    Edits js/content.js and the images it points to, then saves everything to GitHub as one commit.
-   GitHub Pages rebuilds the site about a minute later. No server and no build step.
+   Vercel sees the new commit and redeploys the site, usually within a minute. No server and no build step.
    Sections so far: Certificates, Milestones, Competitions. */
 "use strict";
 (() => {
@@ -9,6 +9,8 @@ const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&
 const clone=o=>JSON.parse(JSON.stringify(o));
 const el=html=>{ const t=document.createElement("template"); t.innerHTML=html.trim(); return t.content.firstElementChild; };
 const kb=n=>n<1048576?Math.max(1,Math.round(n/1024))+" KB":(n/1048576).toFixed(1)+" MB";
+/* The GitHub repository that holds this site (the one Vercel deploys from). */
+const REPO={owner:"hatheem-r",repo:"portfolio_sep_2026"};
 const SITE="../", CONTENT_PATH="js/content.js";
 const TOKEN_URL="https://github.com/settings/personal-access-tokens/new";
 const PDFJS="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/";
@@ -99,7 +101,7 @@ const mem={
 const S={ gh:null, owner:"", repo:"", branch:"", head:"", treeSha:"", contentSha:"", files:new Map(),
   original:null, draft:null, origText:"", strict:true,
   pending:new Map(),   // path -> {blob,url}: files added in this session, uploaded on publish
-  recent:new Map(),    // path -> url: files published in this session (GitHub Pages may still be building)
+  recent:new Map(),    // path -> url: files published in this session (the site may still be redeploying)
   changes:new Map(), removed:[], moved:new Set(),
   view:"home", sel:-1, popup:null, watch:0, liveMsg:"" };
 const resetChanges=()=>{ S.changes=new Map(); S.removed=[]; S.moved=new Set(); };
@@ -417,7 +419,7 @@ function renderWeb(sel){
   if(!N){
     web.innerHTML=`<div class="webhead"><span data-icon="cpl" class="big"></span><h2>Control Panel</h2></div><hr class="wline">
       <p id="webdesc">Use the settings in Control Panel to update your site.</p>
-      <p class="muted">Changes wait here until you press <b>Publish</b>. Then GitHub rebuilds the site in about a minute.</p>
+      <p class="muted">Changes wait here until you press <b>Publish</b>. Then Vercel redeploys the site, usually within a minute.</p>
       <p><a href="${SITE}" target="_blank" rel="noopener">Open my site ↗</a></p>`;
   }else{
     const it=S.draft[S.view][S.sel];
@@ -696,7 +698,7 @@ function openPublish(){
 }
 function watchLive(text){
   clearInterval(S.watch); let n=0;
-  S.liveMsg="Published · waiting for GitHub Pages…"; renderStatus();
+  S.liveMsg="Published · waiting for Vercel to redeploy…"; renderStatus();
   S.watch=setInterval(async()=>{
     n++;
     try{ const r=await fetch(SITE+CONTENT_PATH+"?cp="+Date.now(),{cache:"no-store"});
@@ -723,17 +725,14 @@ function help(){ msgbox("How publishing works",`<ol class="steps">
   <li>Open a section and add, edit, reorder or delete items. Images are resized and named for you.</li>
   <li>Your edits wait in this window. Nothing on the site changes yet.</li>
   <li>Press <b>Publish</b>. Everything is saved to GitHub as one commit.</li>
-  <li>GitHub Pages rebuilds the site in about a minute. The status bar says when it's live.</li></ol>
+  <li>Vercel sees the commit and redeploys the site, usually within a minute. The status bar says when it's live.</li></ol>
   <p class="muted">Every publish stays in your repository's history, so an older version can always be recovered.</p>`,"info"); }
 function about(){ msgbox("About Control Panel",`<p><b>HatheemOS 98 Control Panel</b></p><p>Edits <code>${CONTENT_PATH}</code> in <b>${esc(S.owner)}/${esc(S.repo)}</b> through the GitHub API.</p>
   <p class="muted">Your token is stored only in this browser. Sign out (File menu) to remove it.</p>`,"cpl"); }
 
 function detectRepo(){
   try{ const saved=JSON.parse(localStorage.getItem("cp_repo")||"null"); if(saved?.owner&&saved?.repo) return saved; }catch(e){}
-  const m=/^([a-z0-9-]+)\.github\.io$/i.exec(location.hostname);
-  if(!m) return {owner:"",repo:""};
-  const seg=location.pathname.split("/").filter(Boolean), i=seg.indexOf("admin");
-  return {owner:m[1],repo:i>0?seg[i-1]:`${m[1]}.github.io`};
+  return {...REPO};
 }
 function showLogin(msg){
   const r=detectRepo(), tok=mem.get("cp_token")||"";

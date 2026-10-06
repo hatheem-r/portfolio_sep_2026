@@ -4,13 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="robots" content="noindex, nofollow">
+  <script>/* /admin → /admin/ so the site paths in admin.js (../) resolve the same way every time */
+    if(!/\/$|\.html$/.test(location.pathname)) location.replace(location.pathname+"/"+location.search+location.hash);</script>
   <title>Control Panel</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=VT323&display=swap">
-  <link rel="stylesheet" href="admin.css">
+  <link rel="stylesheet" href="/admin/admin.css">
 </head>
 <body>
 <noscript>The Control Panel needs JavaScript.</noscript>
-<script src="admin.js"></script>
+<script src="/admin/admin.js"></script>
 </body>
 </html>

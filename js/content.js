@@ -195,16 +195,16 @@ const CONTENT = {
       "image": "certs/agenticai_deeplearningAI.png"
     },
     {
-      "course": "Introduction to LangGraph : Python",
-      "issuer": "LangChain Academy",
-      "date": "Jul 2026",
-      "image": "certs/langgraph_langchainacademy.png"
-    },
-    {
       "course": "Supervised Machine Learning",
       "issuer": "Coursera | Stanford",
       "date": "Jan 2026",
       "image": "certs/supervisedml_coursera.png"
+    },
+    {
+      "course": "Introduction to LangGraph : Python",
+      "issuer": "LangChain Academy",
+      "date": "Jul 2026",
+      "image": "certs/langgraph_langchainacademy.png"
     },
     { "course": "Intro to MCP", "issuer": "Scrimba", "date": "Jul 2026", "image": "certs/mcp_scrimba.png" }
   ],

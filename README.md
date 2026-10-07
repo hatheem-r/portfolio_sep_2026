@@ -44,6 +44,10 @@ It edits everything on the site: **Projects** (cover, screenshots, GitHub link),
 - **Preview** shows the real site with your unpublished changes, opened on the window you're editing.
 - **File → History** lists every publish; **Load** brings an older version back (with its pictures) to check and republish.
 
+**Install it as an app.** On iPhone: Safari → Share → Add to Home Screen. On a Mac: Safari → File → Add to Dock
+(or the install icon in Chrome's address bar). Android/Chrome: menu → Install app. File → *Install as an app…*
+shows the right steps for the device you're on. The app keeps its own sign-in, so paste your tokens once inside it.
+
 **AI assistant (optional).** Text boxes have a **Refine** button (fix grammar, clearer, shorter,
 "write it for me"), picture fields have **Pixelate…** (plain code with the site's palette, no AI),
 and the robot in the bottom-left corner opens a chat that can see the section you're in.

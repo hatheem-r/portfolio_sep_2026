@@ -921,7 +921,7 @@ const fileMenu=()=>[{label:"Publish…",icon:"save",key:"Ctrl+S",disabled:!isDir
   {label:"Preview",icon:"pc",key:"Ctrl+P",run:()=>openPreview()},
   {label:"History…",icon:"clock",run:openHistory},{label:"AI assistant settings…",icon:"robot",run:()=>aiSettings()},"-",
   {label:"Reload from GitHub",run:reload},{label:"Discard unpublished changes",icon:"del",disabled:!isDirty(),run:discard},"-",
-  {label:"Open my site",icon:"pc",run:openSite},{label:"Sign out",icon:"key",run:signOut}];
+  {label:"Open my site",icon:"pc",run:openSite},...(standalone()?[]:[{label:"Install as an app…",icon:"cpl",run:installApp}]),{label:"Sign out",icon:"key",run:signOut}];
 const helpMenu=()=>[{label:"How publishing works",icon:"info",run:help},{label:"About Control Panel",icon:"cpl",run:about}];
 const startMenu=()=>[{label:"Control Panel",icon:"cpl",run:()=>go("")},"-",...ORDER.map(k=>({label:SEC[k].title,icon:SEC[k].icon,run:()=>go(k)})),"-",
   {label:"AI assistant",icon:"robot",run:()=>openChat(true)},{label:"History…",icon:"clock",run:openHistory},{label:"Open my site",icon:"pc",run:openSite},{label:"Sign out",icon:"key",run:signOut}];
@@ -1525,6 +1525,24 @@ async function connect(reloading){
     if(e instanceof GHError&&e.status===401) mem.del("cp_token");
     $("#main").hidden=true; showLogin(explain(e,false));
   }
+}
+
+/* ---------- install as an app (phone home screen, Mac Dock, Chrome/Edge) ---------- */
+const standalone=()=>matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;
+let installEvt=null;
+addEventListener("beforeinstallprompt",e=>{ e.preventDefault(); installEvt=e; });
+addEventListener("appinstalled",()=>{ installEvt=null; });
+if("serviceWorker" in navigator&&location.protocol==="https:") navigator.serviceWorker.register("sw.js").catch(()=>{});
+async function installApp(){
+  if(installEvt){ installEvt.prompt(); try{ await installEvt.userChoice; }catch(e){} installEvt=null; return; }
+  const ua=navigator.userAgent, ios=/iPhone|iPad|iPod/.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1),
+    mac=/Macintosh/.test(ua)&&!ios, safari=/Safari/.test(ua)&&!/Chrome|Chromium|CriOS|Edg|FxiOS|Firefox/.test(ua), android=/Android/.test(ua);
+  const how=ios?"<li>Tap the <b>Share</b> button (the square with an arrow).</li><li>Choose <b>Add to Home Screen</b>, then <b>Add</b>.</li>"
+    :mac&&safari?"<li>In Safari's menu bar choose <b>File → Add to Dock…</b></li><li>Click <b>Add</b>. It opens in its own window from the Dock and Launchpad.</li>"
+    :android?"<li>Open the browser menu (⋮).</li><li>Choose <b>Install app</b> or <b>Add to Home screen</b>.</li>"
+    :"<li>Click the <b>install icon</b> at the right end of the address bar, or open the browser menu and choose <b>Install Control Panel</b> (in Chrome: Cast, save and share → Install page as app).</li>";
+  msgbox("Install as an app",`<p>Add the Control Panel to your ${ios||android?"home screen":"Dock or app list"}:</p><ol class="steps">${how}</ol>
+    <p class="muted">The app keeps its own sign-in, so you'll paste your GitHub token (and Hugging Face token) once more inside it.</p>`,"cpl");
 }
 
 buildShell();

@@ -1,0 +1,17 @@
+{
+  "name": "Control Panel · HatheemOS 98",
+  "short_name": "Control Panel",
+  "description": "Edit and publish my portfolio site.",
+  "id": "/admin/",
+  "start_url": "/admin/",
+  "scope": "/admin/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#008080",
+  "theme_color": "#0b1f8a",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

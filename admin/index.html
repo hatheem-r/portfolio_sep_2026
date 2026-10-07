@@ -7,6 +7,15 @@
   <script>/* /admin → /admin/ so the site paths in admin.js (../) resolve the same way every time */
     if(!/\/$|\.html$/.test(location.pathname)) location.replace(location.pathname+"/"+location.search+location.hash);</script>
   <title>Control Panel</title>
+  <!-- installable app: phone home screen, Mac Dock, Chrome/Edge "Install" -->
+  <link rel="manifest" href="/admin/manifest.webmanifest">
+  <meta name="theme-color" content="#0b1f8a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Control Panel">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <link rel="apple-touch-icon" href="/admin/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/admin/icons/favicon-32.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=VT323&display=swap">
   <link rel="stylesheet" href="/admin/admin.css">

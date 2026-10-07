@@ -177,17 +177,6 @@ const CONTENT = {
   ],
   "journal": [
     {
-      "id": "hello-world",
-      "date": "2026-10-03",
-      "title": "Hello, world",
-      "tag": "site",
-      "body": [
-        "This is the first entry on my new site. It runs like a 1998 desktop: open windows, drag them around, play a game.",
-        "I'll use this journal for the stories behind my projects: workshops, competitions, and the things that broke along the way."
-      ],
-      "images": [{ "src": "images/journal1.jpeg", "caption": "Me into the unknown void" }]
-    },
-    {
       "id": "hacktoberfest",
       "date": "2026-10-05",
       "title": "Hacktoberfest",
@@ -209,6 +198,17 @@ const CONTENT = {
           "caption": "Into the Hacktoberfest!"
         }
       ]
+    },
+    {
+      "id": "hello-world",
+      "date": "2026-10-03",
+      "title": "Hello, world",
+      "tag": "site",
+      "body": [
+        "This is the first entry on my new site. It runs like a 1998 desktop: open windows, drag them around, play a game.",
+        "I'll use this journal for the stories behind my projects: workshops, competitions, and the things that broke along the way."
+      ],
+      "images": [{ "src": "images/journal1.jpeg", "caption": "Me into the unknown void" }]
     }
   ],
   "certificates": [
